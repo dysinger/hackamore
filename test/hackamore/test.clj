@@ -3,17 +3,16 @@
         [hackamore context route processor]))
 
 (deftest hackamore
-  (testing "with a context"
-    (let [ctx (context)]
-      (testing "we should be able to define a simple route"
-        (doto ctx
-          (route (from "vm:a") (to "vm:b"))
-          (start))
-        (testing "and the messages should flow correctly"
-          (-> ctx
-              (.createProducerTemplate)
-              (.sendBody "vm:a" "ohai"))
-          (is (= "ohai" (-> ctx
-                            (.createConsumerTemplate)
-                            (.receiveBody "vm:b")))))
-        (stop ctx)))))
+
+  (testing "a context with a simple a->b route"
+    (doto (context)
+      (route (from "vm:a") (to "vm:b"))
+      (start))
+    (testing "should see messages sent ta 'a' should show up at 'b'"
+      (-> ctx
+          (.createProducerTemplate)
+          (.sendBody "vm:a" "ohai"))
+      (is (= "ohai" (-> ctx
+                        (.createConsumerTemplate)
+                        (.receiveBody "vm:b")))))
+    (stop ctx)))
