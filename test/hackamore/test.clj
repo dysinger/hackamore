@@ -15,5 +15,5 @@
         (is (= "ohai"
                (-> ctx
                    (.createConsumerTemplate)
-                   (.receiveBody "vm:b"))))
-        (stop ctx)))))
+                   (.receiveBody "vm:b")))))
+      (stop ctx))))
