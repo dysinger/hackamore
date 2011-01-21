@@ -1,0 +1,3 @@
+#+TITLE:Hackamore: Clojure Library for Apache Camel
+#+AUTHOR:Tim Dysinger <tim@dysinger.net>
+
