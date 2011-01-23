@@ -15,64 +15,62 @@
       (.createProducerTemplate)
       (.sendBody "direct:start" msg)))
 
-(deftest simple
-  (testing "a route (start->end)"
-    (ctx (route (.from "direct:start") (.to "mock:end"))
-         (testing "should result in hello->hello"
-           (let [e (doto (.getEndpoint *ctx* "mock:end")
-                     (.expectedBodiesReceived ["hello"]))]
-             (snd "hello")
-             (.assertIsSatisfied e))))))
+(deftest basic-route-test
+  (ctx (route (.from "direct:start") (.to "mock:end"))
+       (let [end (doto (.getEndpoint *ctx* "mock:end")
+                   (.expectedBodiesReceived ["hello"]))]
+         (snd "hello")
+         (.assertIsSatisfied end))))
 
-(deftest content-based-router
-  (testing "a route with a content-based-router (start->cbr->end1|end2|end3)"
-    (letfn [(hello [ex] (= "hello" (-> ex (.getIn) (.getBody))))
-            (lol   [ex] (= "lol"   (-> ex (.getIn) (.getBody))))]
-      (ctx (route (.from "direct:start")
-                  (.choice)
-                  (.when (pred hello)) (.to "mock:end1")
-                  (.when (pred lol))   (.to "mock:end2")
-                  (.otherwise)         (.to "mock:end3"))
-           (let [end1 (doto (.getEndpoint *ctx* "mock:end1")
-                        (.expectedBodiesReceived ["hello"]))
-                 end2 (doto (.getEndpoint *ctx* "mock:end2")
-                        (.expectedBodiesReceived ["lol"]))
-                 end3 (doto (.getEndpoint *ctx* "mock:end3")
-                        (.expectedBodiesReceived ["bye"]))]
-             (snd "bye")
-             (snd "hello")
-             (snd "lol")
-             (testing "should result in hello->end1"
-               (.assertIsSatisfied end1))
-             (testing "should result in lol->end2"
-               (.assertIsSatisfied end2))
-             (testing "should result in bye->end3"
-               (.assertIsSatisfied end3)))))))
+(deftest content-based-router-test
+  (letfn [(hello [ex] (= "hello" (-> ex (.getIn) (.getBody))))
+          (lol   [ex] (= "lol"   (-> ex (.getIn) (.getBody))))]
+    (ctx (route (.from "direct:start")
+                (.choice)
+                (.when (pred hello)) (.to "mock:end1")
+                (.when (pred lol))   (.to "mock:end2")
+                (.otherwise)         (.to "mock:end3"))
+         (let [end1 (doto (.getEndpoint *ctx* "mock:end1")
+                      (.expectedBodiesReceived ["hello"]))
+               end2 (doto (.getEndpoint *ctx* "mock:end2")
+                      (.expectedBodiesReceived ["lol"]))
+               end3 (doto (.getEndpoint *ctx* "mock:end3")
+                      (.expectedBodiesReceivedInAnyOrder
+                       ["cheezburger" "inurserver" "lolol"]))]
+           (doseq [msg ["cheezburger" "hello" "inurserver" "lol" "lolol"]]
+             (snd msg))
+           (.assertIsSatisfied end1)
+           (.assertIsSatisfied end2)
+           (.assertIsSatisfied end3)))))
 
-(deftest transformer
-  (testing "a route with a transformer (start->proc->end)"
+(deftest transformer-test
+  (ctx (route (.from "direct:start")
+              (.transform (expr #(let [msg (-> % (.getIn) (.getBody))]
+                                   (if (= "hello" msg) "ohai" msg))))
+              (.to "mock:end"))
+       (let [end (doto (.getEndpoint *ctx* "mock:end")
+                   (.expectedBodiesReceivedInAnyOrder ["ohai" "kthxbai"]))]
+         (doseq [msg ["hello" "kthxbai"]]
+           (snd msg))
+         (.assertIsSatisfied end))))
+
+(deftest processor-test
+  (let [counter (atom 0)]
     (ctx (route (.from "direct:start")
                 (.process (proc #(let [msg (.getIn %)]
-                                   (when (= (.getBody msg) "hello")
-                                     (.setBody msg "ohai")))))
+                                   (when (= (.getBody msg) "bingo!")
+                                     (swap! counter inc)))))
                 (.to "mock:end"))
-         (testing "should result in hello->ohai & kthxbai->kthxbai"
-           (let [end (doto (.getEndpoint *ctx* "mock:end")
-                       (.expectedBodiesReceived ["ohai" "kthxbai"]))]
-             (snd "hello")
-             (snd "kthxbai")
-             (.assertIsSatisfied end))))))
+         (doseq [msg ["lol" "bingo!" "ohai" "bingo!" "cheezeburger"]]
+           (snd msg))
+         (is (= @counter 2)))))
 
-(deftest filter
-  (testing "a route with a filter (start->filter->end)"
-    (ctx (route (.from "direct:start")
-                (.filter (expr #(not (= "bad" (-> % (.getIn) (.getBody))))))
-                (.to "mock:end"))
-         (testing "should filter out 'bad' messages"
-           (let [end (doto (.getEndpoint *ctx* "mock:end")
-                       (.expectedBodiesReceivedInAnyOrder ["hello" "lol"]))]
-             (snd "hello")
-             (snd "bad")
-             (snd "bad")
-             (snd "lol")
-             (.assertIsSatisfied end))))))
+(deftest filter-test
+  (ctx (route (.from "direct:start")
+              (.filter (pred #(not (= "bad" (-> % (.getIn) (.getBody))))))
+              (.to "mock:end"))
+       (let [end (doto (.getEndpoint *ctx* "mock:end")
+                   (.expectedBodiesReceivedInAnyOrder ["hello" "ohai" "lol"]))]
+         (doseq [msg ["hello" "bad" "ohai" "bad" "lol"]]
+           (snd msg))
+         (.assertIsSatisfied end))))

@@ -1,7 +1,7 @@
 (ns hackamore.core
-  (:import [org.apache.camel Exchange Expression Message Predicate Processor]
+  (:import [org.apache.camel Expression Predicate Processor]
            [org.apache.camel.builder RouteBuilder]
-           [org.apache.camel.impl DefaultCamelContext ExpressionAdapter]))
+           [org.apache.camel.impl DefaultCamelContext]))
 
 (defn context
   []
@@ -14,15 +14,15 @@
 
 (defn pred
   [f]
-  (proxy [Predicate] []
-    (matches [ex] (f ex))))
+  (reify Predicate
+    (matches [this exchange] (f exchange))))
 
 (defn expr
   [f]
-  (proxy [ExpressionAdapter] []
-    (evaluate [ex _] (f ex))))
+  (reify Expression
+    (evaluate [this exchange _] (f exchange))))
 
 (defn proc
   [f]
-  (proxy [Processor] []
-    (process [ex] (f ex))))
+  (reify Processor
+    (process [this exchange] (f exchange))))
