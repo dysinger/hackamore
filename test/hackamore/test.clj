@@ -56,9 +56,8 @@
 (deftest processor-test
   (let [counter (atom 0)]
     (ctx (route (.from "direct:start")
-                (.process (proc #(let [msg (.getIn %)]
-                                   (when (= (.getBody msg) "bingo!")
-                                     (swap! counter inc)))))
+                (.process (proc #(when (= "bingo!" (-> (.getIn %) (.getBody)))
+                                   (swap! counter inc))))
                 (.to "mock:end"))
          (doseq [msg ["lol" "bingo!" "ohai" "bingo!" "cheezeburger"]]
            (snd msg))
