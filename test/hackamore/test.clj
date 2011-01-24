@@ -45,11 +45,10 @@
 
 (deftest transformer-test
   (ctx (route (.from "direct:start")
-              (.transform (expr #(let [msg (-> % (.getIn) (.getBody))]
-                                   (if (= "hello" msg) "ohai" msg))))
+              (.transform (expr #(str (-> % (.getIn) (.getBody)) "!")))
               (.to "mock:end"))
        (let [end (doto (.getEndpoint *ctx* "mock:end")
-                   (.expectedBodiesReceivedInAnyOrder ["ohai" "kthxbai"]))]
+                   (.expectedBodiesReceivedInAnyOrder ["hello!" "kthxbai!"]))]
          (doseq [msg ["hello" "kthxbai"]]
            (snd msg))
          (.assertIsSatisfied end))))
