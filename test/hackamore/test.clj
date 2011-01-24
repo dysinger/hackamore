@@ -3,7 +3,7 @@
   (:use [clojure.test]
         [hackamore.core]))
 
-(declare #^:dynamic *ctx*)
+(declare ^:dynamic *ctx*)
 
 (defmacro ctx [r & body]
   `(let [c# (doto (context) (.addRoutes ~r) (.start))]
